@@ -9,6 +9,7 @@
 # BEiT: https://github.com/microsoft/unilm/tree/master/beit
 # --------------------------------------------------------
 import math
+from random import sample
 import sys
 from typing import Iterable
 
@@ -16,6 +17,7 @@ import torch
 
 import util.misc as misc
 import util.lr_sched as lr_sched
+import torchvision.transforms.functional as TF
 
 
 def train_one_epoch(model: torch.nn.Module,
@@ -45,7 +47,7 @@ def train_one_epoch(model: torch.nn.Module,
         samples = samples.to(device, non_blocking=True)
 
         with torch.cuda.amp.autocast():
-            loss, _, _ = model(samples, mask_ratio=args.mask_ratio)
+            loss, pred, mask = model(samples, mask_ratio=args.mask_ratio)
 
         loss_value = loss.item()
 
@@ -75,6 +77,30 @@ def train_one_epoch(model: torch.nn.Module,
             log_writer.add_scalar('train_loss', loss_value_reduce, epoch_1000x)
             log_writer.add_scalar('lr', lr, epoch_1000x)
 
+        
+        # 可视化gt和 pred
+        if log_writer is not None and (data_iter_step + 1) % args.vis_interval == 0:
+            N, num_patches, _ = pred.size()
+            _, C, H, W = samples.size()
+            sample_patches = model.patchify(samples) 
+
+            recon_vis = model.unpatchify(
+                pred * mask.reshape(N, num_patches, 1) 
+                + sample_patches * (1 - mask.reshape(N, num_patches, 1))
+            )  # mask 0-kept 1-removed
+
+            masked_vis = model.unpatchify(
+                sample_patches * (1-mask.reshape(N, num_patches, -1))
+            ) 
+
+            cmp = torch.stack([masked_vis ,recon_vis, samples], dim=1)
+            cmp = cmp.permute(0,2,3,1,4).reshape(N,C,H,-1)
+            # de-normalized
+            cmp = TF.normalize(cmp, mean=[0., 0., 0.], std=[1/0.229, 1/0.224, 1/0.225])
+            cmp = TF.normalize(cmp, mean = [ -0.485, -0.456, -0.406 ],  std = [ 1., 1., 1. ])
+            cmp = torch.clip(cmp, min=0, max=1)
+            
+            log_writer.add_images('train/recon_vis', cmp, data_iter_step + 1)
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()

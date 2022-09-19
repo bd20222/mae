@@ -1,0 +1,38 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1",
+            },
+            "args": [
+                // "--job_dir=./exp_dir/dummy",
+                // "--nodes=1",
+                // "--use_volta32",
+                
+                // "--device=cuda:0",
+                "--log_dir=./exp_dir/dummy/log",
+                "--output_dir=./exp_dir/dummy",
+                "--batch_size=128",
+                "--accum_iter=32",
+                "--model=mae_vit_base_patch16",
+                // "--norm_pix_loss",
+                "--mask_ratio=0.75",
+                "--epochs=800",
+                "--warmup_epochs=40",
+                "--blr=1.5e-4",
+                "--weight_decay=0.05",
+                "--data_path=/home/lza/datasets/imagenette/imagenette2/"
+            ]
+        }
+    ]
+}
